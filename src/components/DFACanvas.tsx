@@ -39,6 +39,12 @@ interface Props {
   onTransientChange?: (next: Machine | ((prev: Machine) => Machine)) => void;
   /** Base filename for the PNG export. */
   exportName?: string;
+  /** Tutor: grey out every edge that is not on this symbol. */
+  isolateSymbol?: string | null;
+  /** Tutor: small "?" markers on these state labels. */
+  annotations?: string[];
+  /** Tutor: emphasise one specific edge (by state labels). */
+  highlightTransition?: { from: string; to: string; color?: HighlightTone } | null;
 }
 
 interface PendingEdge {
