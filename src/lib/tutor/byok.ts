@@ -7,7 +7,7 @@
  * the whole app deployable as pure static files (Netlify, GitHub Pages, file://).
  */
 
-export type ProviderId = "anthropic" | "openai" | "openrouter" | "google";
+export type ProviderId = "anthropic" | "openai" | "openrouter" | "google" | "nvidia";
 
 export interface ChatMessage {
   role: "user" | "assistant";
