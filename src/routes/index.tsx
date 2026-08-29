@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { Bot, Compass, FlaskConical, Moon, Bug, BarChart3, Sun, Workflow } from "lucide-react";
+import { ArrowRightLeft, Bot, Compass, FlaskConical, Moon, Bug, BarChart3, Sun, Workflow } from "lucide-react";
+import { Converter } from "@/components/modules/Converter";
 import { Discovery } from "@/components/modules/Discovery";
 import { MutationLab } from "@/components/modules/MutationLab";
 import { Debugger } from "@/components/modules/Debugger";
