@@ -52,13 +52,7 @@ export function Converter({ active, onContext }: { active: boolean; onContext?: 
   /* ── persistence through the shared Storage layer ── */
   useEffect(() => {
     const saved = Storage.loadDFA(SAVE_ID).data;
-    if (saved?.dfa?.states?.length) {
-      try {
-        setMachine(layoutMachine(dfaToMachine(new (Object.getPrototypeOf(starterMachine()) ? Object : Object)() as never)));
-      } catch {
-        /* ignore */
-      }
-    }
+    if (saved?.dfa?.states?.length) setMachine(dfaToMachine(DFA.fromJSON(saved.dfa), saved.positions));
   }, []);
 
   useEffect(() => {
