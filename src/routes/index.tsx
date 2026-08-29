@@ -32,7 +32,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type TabId = "discovery" | "mutation" | "debugger" | "analytics" | "nfa";
+type TabId = "discovery" | "mutation" | "debugger" | "analytics" | "nfa" | "converter";
 
 const TABS: { id: TabId; label: string; icon: typeof Compass }[] = [
   { id: "discovery", label: "Discovery", icon: Compass },
