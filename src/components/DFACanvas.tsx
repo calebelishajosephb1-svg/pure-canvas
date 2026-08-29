@@ -583,6 +583,18 @@ export function DFACanvas({
               >
                 {s.label}
               </text>
+              {annotations.includes(s.label) && (
+                <text
+                  x={s.x + STATE_R - 2}
+                  y={s.y - STATE_R + 2}
+                  textAnchor="middle"
+                  fontSize="15"
+                  fontWeight="700"
+                  fill="var(--signal-amber)"
+                >
+                  ?
+                </text>
+              )}
               {confirming && (
                 <text x={s.x} y={s.y + STATE_R + 20} textAnchor="middle" fontSize="10" fill="var(--signal-amber)">
                   click again to delete
