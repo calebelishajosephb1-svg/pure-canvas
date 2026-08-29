@@ -101,6 +101,33 @@ export function buildAnalyticsContext(d: { attempted: number; solved: number; to
   ].join("\n");
 }
 
+/**
+ * Converter context — PUBLIC-but-sequenced tier.
+ * Nothing is hidden; the only boundary is how far the student has stepped
+ * through the derivation log (revealedThroughStep).
+ */
+export function buildConverterContext(d: {
+  source: string;
+  target: string;
+  machine: Machine;
+  alphabet: string[];
+  regex: string | null;
+  hasResult: boolean;
+  totalSteps: number;
+  revealedThroughStep: number;
+  finalVisible: boolean;
+}): string {
+  const summary = summarizeMachine(d.machine, d.alphabet);
+  return [
+    `Module: Converter — converting ${d.source} → ${d.target}. Visibility tier: PUBLIC-but-sequenced.`,
+    d.regex ? `Source regex: ${d.regex}` : block(summary),
+    d.hasResult
+      ? `Derivation: ${d.totalSteps} steps, student has revealed through step ${d.revealedThroughStep + 1}. Final result on screen: ${d.finalVisible}.`
+      : "No conversion has been run yet.",
+    "Pedagogy: explain the algorithm in general freely, but never state a derivation step past revealedThroughStep, and never state the final regex/DFA before finalVisible is true — ask the student to attempt it first.",
+  ].join("\n");
+}
+
 export function machineDFA(machine: Machine, alphabet: string[]) {
   return machineToDFA(machine, alphabet);
 }
