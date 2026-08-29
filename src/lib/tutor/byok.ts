@@ -7,7 +7,7 @@
  * the whole app deployable as pure static files (Netlify, GitHub Pages, file://).
  */
 
-export type ProviderId = "anthropic" | "openai" | "openrouter" | "google";
+export type ProviderId = "anthropic" | "openai" | "openrouter" | "google" | "nvidia";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -64,6 +64,29 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     body: (system, messages, model) => ({
       model,
       max_tokens: 700,
+      messages: [{ role: "system", content: system }, ...messages],
+    }),
+    parse: (json) =>
+      text((json as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content).trim(),
+  },
+  nvidia: {
+    id: "nvidia",
+    label: "NVIDIA NIM",
+    keyPlaceholder: "nvapi-...",
+    keysUrl: "https://build.nvidia.com/",
+    models: [
+      "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+      "meta/llama-3.3-70b-instruct",
+      "qwen/qwen2.5-coder-32b-instruct",
+      "deepseek-ai/deepseek-r1",
+      "mistralai/mistral-large-2-instruct",
+    ],
+    endpoint: "https://integrate.api.nvidia.com/v1/chat/completions",
+    headers: (key) => ({ "content-type": "application/json", authorization: `Bearer ${key}` }),
+    body: (system, messages, model) => ({
+      model,
+      max_tokens: 900,
+      temperature: 0.4,
       messages: [{ role: "system", content: system }, ...messages],
     }),
     parse: (json) =>
@@ -176,7 +199,26 @@ You may emit at most 2 of these action tags, each on its own line at the very en
 <IALE_GOTO_TAB tab="discovery|mutation|debugger|analytics|nfa" />
 <IALE_SHOW_EXAMPLE str="010" accept="true|false" />
 <IALE_CHALLENGE name="Easier practice" regex="(0|1)*" difficulty="Easy" alphabet="01" />
-Only reference states that exist on the student's canvas. Emit IALE_CHALLENGE at most once per reply, and only to offer the student an easier practice language — never one that encodes the current hidden answer.
+<IALE_HIGHLIGHT_TRANSITION from="q0" to="q1" color="blue|rose|cyan|amber" />
+<IALE_ANNOTATE_STATE state="q1" />
+<IALE_ISOLATE_SYMBOL symbol="1" />
+<IALE_ZOOM_TO state="q2" />
+<IALE_SIMPLIFY_LAYOUT />
+<IALE_LINK_CONCEPT tab="nfa|converter|mutation|debugger|analytics|discovery" label="See subset construction in NFA Lab" />
+<IALE_ADJUST_DIFFICULTY direction="up|down" />
+<IALE_STREAK_NUDGE />
+<IALE_ANIMATE_ELIMINATION state="q1" />
+<IALE_ANIMATE_SUBSET_STEP set="q0,q1" />
+<IALE_READ_ALOUD_SUMMARY text="A three state machine..." />
+<IALE_EXPORT_SESSION_NOTES />
+Only reference states that exist on the student's canvas. Emit IALE_CHALLENGE at most once per reply, and only to offer the student an easier practice language — never one that encodes the current hidden answer. IALE_LINK_CONCEPT only ever renders a chip the student may click — never use IALE_GOTO_TAB to move them yourself unless they asked to switch modules.
+
+════════ CONVERTER MODULE ONLY (applies when the live context says Module: Converter) ════════
+- The student's machine here is fully PUBLIC — summarise, describe and discuss it freely. Nothing is hidden.
+- You may explain what subset construction, ε-removal or GNFA state elimination does in general at ANY time — that is textbook material.
+- The one boundary is sequencing: never compute or state a derivation step the student has NOT yet revealed in the step log (the context reports revealedThroughStep). If asked "what happens when we eliminate q1?" before that step is revealed, ask them to name the in-edges and out-edges of q1 and attempt R(i,q)·R(q,q)*·R(q,j) themselves; confirm or gently correct their attempt, never pre-empt it.
+- Once a step (or the final result) is on-screen, discuss it in full detail, including the exact labels.
+- Never output a full final regex for a conversion the student has not yet played through.
 
 ════════ LIVE CONTEXT ════════
 ${moduleContext}`;

@@ -19,9 +19,25 @@ const REGEX_REVEAL = /(\([^()]*\|[^()]*\)\s*[*+?])|(\[[^\]]+\]\s*[*+?])/;
 export interface GuardContext {
   moduleId: string;
   hintLevelRevealed?: number;
+  /** Converter only: has the student played the derivation through to the end? */
+  finalVisible?: boolean;
 }
 
+/** Modules where the machine is fully on-screen: only sequencing is protected. */
+const PUBLIC_TIER = new Set(["converter", "nfa", "mutation"]);
+
+export const SEQUENCE_FALLBACK =
+  "That's the step you're about to derive — try it first. Name the in-edges and out-edges involved, take a swing at the substitution, and I'll tell you whether it holds.";
+
 export function checkReply(reply: string, ctx: GuardContext): { allowed: boolean; reason?: string; fallback: string } {
+  if (PUBLIC_TIER.has(ctx.moduleId)) {
+    // Nothing is hidden here — the only leak is pre-empting an unrevealed step.
+    if (ctx.finalVisible === false && REGEX_REVEAL.test(reply)) {
+      return { allowed: false, reason: "final derivation pre-empted", fallback: SEQUENCE_FALLBACK };
+    }
+    return { allowed: true, fallback: SEQUENCE_FALLBACK };
+  }
+
   const tableRows = reply.match(TABLE_ROW)?.length ?? 0;
   if (tableRows >= 2) return { allowed: false, reason: "transition-table dump", fallback: FALLBACK_MESSAGE };
 

@@ -39,6 +39,12 @@ interface Props {
   onTransientChange?: (next: Machine | ((prev: Machine) => Machine)) => void;
   /** Base filename for the PNG export. */
   exportName?: string;
+  /** Tutor: grey out every edge that is not on this symbol. */
+  isolateSymbol?: string | null;
+  /** Tutor: small "?" markers on these state labels. */
+  annotations?: string[];
+  /** Tutor: emphasise one specific edge (by state labels). */
+  highlightTransition?: { from: string; to: string; color?: HighlightTone } | null;
 }
 
 interface PendingEdge {
@@ -68,12 +74,14 @@ function edgeGeometry(a: MachineState, b: MachineState, curved: boolean) {
   const ex = b.x - ux * (STATE_R + 9);
   const ey = b.y - uy * (STATE_R + 9);
   if (!curved) {
-    return { path: `M ${sx} ${sy} L ${ex} ${ey}`, labelX: (sx + ex) / 2 - uy * 14, labelY: (sy + ey) / 2 + ux * 14 - 4 };
+    // Label sits ON the line (the paint-order halo punches a gap through it).
+    return { path: `M ${sx} ${sy} L ${ex} ${ey}`, labelX: (sx + ex) / 2, labelY: (sy + ey) / 2 + 4.5 };
   }
   const bend = 42;
   const mx = (sx + ex) / 2 - uy * bend;
   const my = (sy + ey) / 2 + ux * bend;
-  return { path: `M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`, labelX: mx - uy * 6, labelY: my + ux * 6 - 2 };
+  // Quadratic midpoint = average of endpoints and control point — again, on the curve.
+  return { path: `M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`, labelX: (sx + ex + 2 * mx) / 4, labelY: (sy + ey + 2 * my) / 4 + 4.5 };
 }
 
 export function DFACanvas({
@@ -88,10 +96,14 @@ export function DFACanvas({
   activeTransition = null,
   onTransientChange,
   exportName = "automaton",
+  isolateSymbol = null,
+  annotations = [],
+  highlightTransition = null,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const worldRef = useRef<SVGGElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [transFrom, setTransFrom] = useState<string | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
@@ -195,6 +207,42 @@ export function DFACanvas({
     [machine.states],
   );
 
+  /** Nearest transition within a grab radius, so edges can be selected/deleted too. */
+  const hitTransition = useCallback(
+    (x: number, y: number) => {
+      let best: { t: MachineTransition; d: number } | null = null;
+      for (const t of machine.transitions) {
+        const a = machine.states.find((s) => s.id === t.from);
+        const b = machine.states.find((s) => s.id === t.to);
+        if (!a || !b) continue;
+        const curved = machine.transitions.some((o) => o.from === t.to && o.to === t.from && o.id !== t.id);
+        const g = edgeGeometry(a, b, curved);
+        let d = Math.hypot(g.labelX - x, g.labelY - y);
+        if (a.id !== b.id) {
+          // point-to-segment distance along the state-centre line
+          const vx = b.x - a.x;
+          const vy = b.y - a.y;
+          const len2 = vx * vx + vy * vy || 1;
+          const tt = Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / len2));
+          const px = a.x + tt * vx;
+          const py = a.y + tt * vy;
+          d = Math.min(d, Math.hypot(px - x, py - y) + (curved ? 22 : 0));
+        }
+        if (d <= 16 && (!best || d < best.d)) best = { t, d };
+      }
+      return best?.t ?? null;
+    },
+    [machine],
+  );
+
+  const deleteTransition = useCallback(
+    (id: string) => {
+      onChange?.((prev) => ({ ...prev, transitions: prev.transitions.filter((t) => t.id !== id) }));
+      setSelectedEdge(null);
+    },
+    [onChange],
+  );
+
   const nextLabel = useCallback(() => {
     let i = 0;
     const used = new Set(machine.states.map((s) => s.label));
@@ -260,7 +308,10 @@ export function DFACanvas({
           setConfirmDelete(hit.id);
           window.setTimeout(() => setConfirmDelete((c) => (c === hit.id ? null : c)), 3000);
         }
+        return;
       }
+      const edge = hitTransition(x, y);
+      if (edge) deleteTransition(edge.id);
       return;
     }
     if (mode === "transition") {
@@ -290,12 +341,16 @@ export function DFACanvas({
     // pointer: select + drag only, never creates
     if (hit) {
       setSelected(hit.id);
+      setSelectedEdge(null);
       setDragging(hit.id);
       if (onTransientChange) onChange?.((prev) => prev); // one undo entry per drag
 
       (e.target as Element).setPointerCapture?.(e.pointerId);
     } else {
       setSelected(null);
+      const edge = hitTransition(x, y);
+      setSelectedEdge(edge?.id ?? null);
+      if (edge) return;
       // Empty-space drag pans the canvas.
       const vb = toViewBox(e);
       setPanning({ px: vb.x - view.x, py: vb.y - view.y });
@@ -361,12 +416,16 @@ export function DFACanvas({
         setTransFrom(null);
         setRenaming(null);
       }
-      if ((e.key === "Delete" || e.key === "Backspace") && selected && editable) deleteState(selected);
+      if (e.key === "Escape") setSelectedEdge(null);
+      if ((e.key === "Delete" || e.key === "Backspace") && editable) {
+        if (selectedEdge) deleteTransition(selectedEdge);
+        else if (selected) deleteState(selected);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, editable]);
+  }, [selected, selectedEdge, editable, deleteTransition]);
 
   const byId = (id: string) => machine.states.find((s) => s.id === id);
   const existingEdges = machine.transitions.map((t) => ({ from: t.from, to: t.to, symbols: t.symbols }));
@@ -442,14 +501,24 @@ export function DFACanvas({
           const hasReverse = machine.transitions.some((o) => o.from === t.to && o.to === t.from && o.id !== t.id);
           const g = edgeGeometry(a, b, hasReverse);
           const active =
-            activeTransition && a.label === activeTransition.from && b.label === activeTransition.to;
+            (activeTransition && a.label === activeTransition.from && b.label === activeTransition.to) ||
+            (highlightTransition && a.label === highlightTransition.from && b.label === highlightTransition.to);
+          const isSelEdge = selectedEdge === t.id;
+          const dimmed = !!isolateSymbol && !t.symbols.includes(isolateSymbol);
+          const tone = active
+            ? highlightTransition?.color
+              ? TONE_VAR[highlightTransition.color]
+              : "var(--signal-blue)"
+            : isSelEdge
+              ? "var(--signal-amber)"
+              : "var(--border-strong)";
           return (
-            <g key={t.id}>
+            <g key={t.id} opacity={dimmed ? 0.18 : 1}>
               <path
                 d={g.path}
                 fill="none"
-                stroke={active ? "var(--signal-blue)" : "var(--border-strong)"}
-                strokeWidth={active ? 3 : 2}
+                stroke={tone}
+                strokeWidth={active || isSelEdge ? 3 : 2}
                 markerEnd={active ? "url(#arr-hl)" : "url(#arr)"}
                 opacity={active ? 1 : 0.85}
               />
@@ -459,11 +528,16 @@ export function DFACanvas({
                 textAnchor="middle"
                 fontFamily="var(--font-mono-family)"
                 fontSize="13"
-                fill={active ? "var(--signal-blue)" : "var(--ink-muted)"}
-                style={{ paintOrder: "stroke", stroke: "var(--bg-canvas)", strokeWidth: 5 }}
+                fill={active ? "var(--signal-blue)" : isSelEdge ? "var(--signal-amber)" : "var(--ink-primary)"}
+                style={{ paintOrder: "stroke", stroke: "var(--bg-canvas)", strokeWidth: 6 }}
               >
-                {t.symbols.join(",")}
+                {isolateSymbol ? t.symbols.filter((s) => s === isolateSymbol).join(",") || t.symbols.join(",") : t.symbols.join(",")}
               </text>
+              {isSelEdge && editable && (
+                <text x={g.labelX} y={g.labelY + 16} textAnchor="middle" fontSize="9.5" fill="var(--signal-amber)">
+                  press Delete to remove
+                </text>
+              )}
             </g>
           );
         })}
@@ -509,6 +583,18 @@ export function DFACanvas({
               >
                 {s.label}
               </text>
+              {annotations.includes(s.label) && (
+                <text
+                  x={s.x + STATE_R - 2}
+                  y={s.y - STATE_R + 2}
+                  textAnchor="middle"
+                  fontSize="15"
+                  fontWeight="700"
+                  fill="var(--signal-amber)"
+                >
+                  ?
+                </text>
+              )}
               {confirming && (
                 <text x={s.x} y={s.y + STATE_R + 20} textAnchor="middle" fontSize="10" fill="var(--signal-amber)">
                   click again to delete

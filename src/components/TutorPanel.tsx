@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, ExternalLink, Eye, EyeOff, KeyRound, Send, Settings2, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { Bot, Download, ExternalLink, Eye, EyeOff, KeyRound, Send, Settings2, Volume2, X } from "lucide-react";
 import {
   askTutor,
   loadSettings,
@@ -34,11 +35,28 @@ export function TutorPanel({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chips, setChips] = useState<{ tab: string; label: string }[]>([]);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const composer = useRef<HTMLInputElement | null>(null);
+  /** Converter reveal tracking — feeds the sequencing guard. */
+  const reveal = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     setSettings(loadSettings());
   }, []);
+
+  useEffect(() => {
+    const onReveal = (e: Event) => {
+      const d = (e as CustomEvent).detail as { moduleId: string; finalVisible: boolean };
+      if (d?.moduleId) reveal.current[d.moduleId] = d.finalVisible;
+    };
+    window.addEventListener("iale-reveal-state", onReveal);
+    return () => window.removeEventListener("iale-reveal-state", onReveal);
+  }, []);
+
+  useEffect(() => {
+    if (open) composer.current?.focus();
+  }, [open, moduleId]);
 
   useEffect(() => {
     if (!settings.apiKey && open) setShowSettings(true);
@@ -72,10 +90,30 @@ export function TutorPanel({
       return;
     }
     const { cleanText, actions } = parseTutorActions(res.text);
-    const verdict = checkReply(cleanText, { moduleId });
+    const verdict = checkReply(cleanText, { moduleId, finalVisible: reveal.current[moduleId] });
     const finalText = verdict.allowed ? cleanText : verdict.fallback;
     setMessages((m) => [...m, { role: "assistant", content: finalText }]);
-    if (verdict.allowed) dispatchTutorActions(actions);
+    composer.current?.focus();
+    if (!verdict.allowed) return;
+
+    dispatchTutorActions(actions);
+    for (const a of actions) {
+      if (a.type === "linkConcept") setChips((c) => [...c.filter((x) => x.tab !== a.tab), { tab: a.tab, label: a.label }].slice(-3));
+      if (a.type === "readAloud") speak(a.text);
+      if (a.type === "exportNotes") exportNotes([...messages, { role: "assistant", content: finalText }]);
+    }
+  }
+
+  function exportNotes(thread: ChatMessage[]) {
+    const body = thread
+      .map((m) => `${m.role === "user" ? "You" : "Socratic"}: ${stripThink(m.content)}`)
+      .join("\n\n");
+    const url = URL.createObjectURL(new Blob([`IALE session notes — ${moduleId}\n\n${body}\n`], { type: "text/plain" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `iale-session-${moduleId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   if (!open) return null;

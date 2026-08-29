@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { Bot, Compass, FlaskConical, Moon, Bug, BarChart3, Sun, Workflow } from "lucide-react";
+import { ArrowRightLeft, Bot, Compass, FlaskConical, Moon, Bug, BarChart3, Sun, Workflow } from "lucide-react";
+import { Converter } from "@/components/modules/Converter";
 import { Discovery } from "@/components/modules/Discovery";
 import { MutationLab } from "@/components/modules/MutationLab";
 import { Debugger } from "@/components/modules/Debugger";
@@ -31,13 +32,14 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type TabId = "discovery" | "mutation" | "debugger" | "analytics" | "nfa";
+type TabId = "discovery" | "mutation" | "debugger" | "analytics" | "nfa" | "converter";
 
 const TABS: { id: TabId; label: string; icon: typeof Compass }[] = [
   { id: "discovery", label: "Discovery", icon: Compass },
   { id: "mutation", label: "Mutation Lab", icon: FlaskConical },
   { id: "debugger", label: "Debugger", icon: Bug },
   { id: "nfa", label: "NFA Lab", icon: Workflow },
+  { id: "converter", label: "Converter", icon: ArrowRightLeft },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
@@ -118,6 +120,9 @@ function Index() {
           </ModulePane>
           <ModulePane show={tab === "nfa"}>
             <NFALab />
+          </ModulePane>
+          <ModulePane show={tab === "converter"}>
+            <Converter active={tab === "converter"} onContext={bind("converter")} />
           </ModulePane>
           <ModulePane show={tab === "analytics"}>
             <Analytics active={tab === "analytics"} onContext={bind("analytics")} onGoto={goto} />
