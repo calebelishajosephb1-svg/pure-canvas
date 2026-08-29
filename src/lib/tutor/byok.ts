@@ -69,6 +69,29 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     parse: (json) =>
       text((json as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content).trim(),
   },
+  nvidia: {
+    id: "nvidia",
+    label: "NVIDIA NIM",
+    keyPlaceholder: "nvapi-...",
+    keysUrl: "https://build.nvidia.com/",
+    models: [
+      "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+      "meta/llama-3.3-70b-instruct",
+      "qwen/qwen2.5-coder-32b-instruct",
+      "deepseek-ai/deepseek-r1",
+      "mistralai/mistral-large-2-instruct",
+    ],
+    endpoint: "https://integrate.api.nvidia.com/v1/chat/completions",
+    headers: (key) => ({ "content-type": "application/json", authorization: `Bearer ${key}` }),
+    body: (system, messages, model) => ({
+      model,
+      max_tokens: 900,
+      temperature: 0.4,
+      messages: [{ role: "system", content: system }, ...messages],
+    }),
+    parse: (json) =>
+      text((json as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content).trim(),
+  },
   openrouter: {
     id: "openrouter",
     label: "OpenRouter",
