@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, ExternalLink, Eye, EyeOff, KeyRound, Send, Settings2, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { Bot, Download, ExternalLink, Eye, EyeOff, KeyRound, Send, Settings2, Volume2, X } from "lucide-react";
 import {
   askTutor,
   loadSettings,
