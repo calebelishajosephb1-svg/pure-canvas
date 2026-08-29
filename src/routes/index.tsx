@@ -39,6 +39,7 @@ const TABS: { id: TabId; label: string; icon: typeof Compass }[] = [
   { id: "mutation", label: "Mutation Lab", icon: FlaskConical },
   { id: "debugger", label: "Debugger", icon: Bug },
   { id: "nfa", label: "NFA Lab", icon: Workflow },
+  { id: "converter", label: "Converter", icon: ArrowRightLeft },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
