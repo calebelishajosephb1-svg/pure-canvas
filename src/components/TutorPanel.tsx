@@ -35,11 +35,28 @@ export function TutorPanel({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chips, setChips] = useState<{ tab: string; label: string }[]>([]);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const composer = useRef<HTMLInputElement | null>(null);
+  /** Converter reveal tracking — feeds the sequencing guard. */
+  const reveal = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     setSettings(loadSettings());
   }, []);
+
+  useEffect(() => {
+    const onReveal = (e: Event) => {
+      const d = (e as CustomEvent).detail as { moduleId: string; finalVisible: boolean };
+      if (d?.moduleId) reveal.current[d.moduleId] = d.finalVisible;
+    };
+    window.addEventListener("iale-reveal-state", onReveal);
+    return () => window.removeEventListener("iale-reveal-state", onReveal);
+  }, []);
+
+  useEffect(() => {
+    if (open) composer.current?.focus();
+  }, [open, moduleId]);
 
   useEffect(() => {
     if (!settings.apiKey && open) setShowSettings(true);
