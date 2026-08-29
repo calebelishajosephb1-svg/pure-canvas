@@ -341,12 +341,16 @@ export function DFACanvas({
     // pointer: select + drag only, never creates
     if (hit) {
       setSelected(hit.id);
+      setSelectedEdge(null);
       setDragging(hit.id);
       if (onTransientChange) onChange?.((prev) => prev); // one undo entry per drag
 
       (e.target as Element).setPointerCapture?.(e.pointerId);
     } else {
       setSelected(null);
+      const edge = hitTransition(x, y);
+      setSelectedEdge(edge?.id ?? null);
+      if (edge) return;
       // Empty-space drag pans the canvas.
       const vb = toViewBox(e);
       setPanning({ px: vb.x - view.x, py: vb.y - view.y });
