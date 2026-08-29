@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Share2, Timer, Wrench } from "lucide-react";
 import { DFACanvas, type CanvasMode, type HighlightTone } from "@/components/DFACanvas";
 import { CanvasToolbar } from "@/components/CanvasToolbar";
 import { ChallengePicker } from "@/components/ChallengePicker";
+import { TimedPractice } from "@/components/TimedPractice";
+import { ChallengeCreator } from "@/components/ChallengeCreator";
 import { FIXED_CHALLENGES, challengeGenerator, type Challenge } from "@/lib/engine/challenges";
+import { DFA } from "@/lib/engine/dfa";
+import { decodeShare, shareUrl } from "@/lib/share";
 import { findCounterexample } from "@/lib/engine/algorithms";
 import { validateDFA, validateWarnings } from "@/lib/engine/validate";
 import { Storage } from "@/lib/storage";
@@ -45,6 +50,8 @@ export function Discovery({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [regex, setRegex] = useState("");
   const [regexErr, setRegexErr] = useState<string | null>(null);
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [creatorOpen, setCreatorOpen] = useState(false);
   const { machine, commit, set, replace, undo, redo, canUndo, canRedo } = useMachine(starterMachine());
   const saveTimer = useRef<number | null>(null);
 
@@ -81,6 +88,16 @@ export function Discovery({
 
   useEffect(() => {
     setChallengeAndReset(FIXED_CHALLENGES[0]!, 1);
+    // A shared machine in the URL hash overrides the autosaved canvas.
+    const shared = decodeShare(window.location.hash);
+    if (shared) {
+      try {
+        replace(dfaToMachine(DFA.fromJSON(shared.d), shared.p));
+        toast.success("Loaded shared machine from link");
+      } catch {
+        toast.error("That share link is malformed");
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -208,6 +225,21 @@ export function Discovery({
       if (action.type === "highlight") flashState(action.state, action.color, 3000);
       if (action.type === "test" || action.type === "animate") runExample(action.value);
       if (action.type === "showExample") addExample(action.str, action.accept);
+      if (action.type === "challenge") {
+        const ch = challengeGenerator.fromRegex(action.regex, action.alphabet, {
+          name: action.name,
+          difficulty: ["Easy", "Medium", "Hard"].includes(action.difficulty)
+            ? (action.difficulty as Challenge["difficulty"])
+            : "Easy",
+          description: "Suggested by Socratic as targeted practice.",
+        });
+        if (ch) {
+          Storage.saveAIChallenge({ ...ch, source: "ai" });
+          setExtra((prev) => [ch, ...prev].slice(0, 12));
+          setChallengeAndReset(ch, index + 1);
+          toast.success("Socratic set you a practice challenge", { description: ch.name });
+        }
+      }
     };
     window.addEventListener("iale-tutor-action", handler);
     return () => window.removeEventListener("iale-tutor-action", handler);
