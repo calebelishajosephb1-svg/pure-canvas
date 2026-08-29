@@ -308,7 +308,10 @@ export function DFACanvas({
           setConfirmDelete(hit.id);
           window.setTimeout(() => setConfirmDelete((c) => (c === hit.id ? null : c)), 3000);
         }
+        return;
       }
+      const edge = hitTransition(x, y);
+      if (edge) deleteTransition(edge.id);
       return;
     }
     if (mode === "transition") {
