@@ -90,10 +90,30 @@ export function TutorPanel({
       return;
     }
     const { cleanText, actions } = parseTutorActions(res.text);
-    const verdict = checkReply(cleanText, { moduleId });
+    const verdict = checkReply(cleanText, { moduleId, finalVisible: reveal.current[moduleId] });
     const finalText = verdict.allowed ? cleanText : verdict.fallback;
     setMessages((m) => [...m, { role: "assistant", content: finalText }]);
-    if (verdict.allowed) dispatchTutorActions(actions);
+    composer.current?.focus();
+    if (!verdict.allowed) return;
+
+    dispatchTutorActions(actions);
+    for (const a of actions) {
+      if (a.type === "linkConcept") setChips((c) => [...c.filter((x) => x.tab !== a.tab), { tab: a.tab, label: a.label }].slice(-3));
+      if (a.type === "readAloud") speak(a.text);
+      if (a.type === "exportNotes") exportNotes([...messages, { role: "assistant", content: finalText }]);
+    }
+  }
+
+  function exportNotes(thread: ChatMessage[]) {
+    const body = thread
+      .map((m) => `${m.role === "user" ? "You" : "Socratic"}: ${stripThink(m.content)}`)
+      .join("\n\n");
+    const url = URL.createObjectURL(new Blob([`IALE session notes — ${moduleId}\n\n${body}\n`], { type: "text/plain" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `iale-session-${moduleId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   if (!open) return null;
