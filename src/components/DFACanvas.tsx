@@ -68,12 +68,14 @@ function edgeGeometry(a: MachineState, b: MachineState, curved: boolean) {
   const ex = b.x - ux * (STATE_R + 9);
   const ey = b.y - uy * (STATE_R + 9);
   if (!curved) {
-    return { path: `M ${sx} ${sy} L ${ex} ${ey}`, labelX: (sx + ex) / 2 - uy * 14, labelY: (sy + ey) / 2 + ux * 14 - 4 };
+    // Label sits ON the line (the paint-order halo punches a gap through it).
+    return { path: `M ${sx} ${sy} L ${ex} ${ey}`, labelX: (sx + ex) / 2, labelY: (sy + ey) / 2 + 4.5 };
   }
   const bend = 42;
   const mx = (sx + ex) / 2 - uy * bend;
   const my = (sy + ey) / 2 + ux * bend;
-  return { path: `M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`, labelX: mx - uy * 6, labelY: my + ux * 6 - 2 };
+  // Quadratic midpoint = average of endpoints and control point — again, on the curve.
+  return { path: `M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`, labelX: (sx + ex + 2 * mx) / 4, labelY: (sy + ey + 2 * my) / 4 + 4.5 };
 }
 
 export function DFACanvas({
