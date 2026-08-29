@@ -96,6 +96,9 @@ export function DFACanvas({
   activeTransition = null,
   onTransientChange,
   exportName = "automaton",
+  isolateSymbol = null,
+  annotations = [],
+  highlightTransition = null,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const worldRef = useRef<SVGGElement>(null);
