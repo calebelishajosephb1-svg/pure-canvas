@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Share2, Timer, Wrench } from "lucide-react";
 import { DFACanvas, type CanvasMode, type HighlightTone } from "@/components/DFACanvas";
 import { CanvasToolbar } from "@/components/CanvasToolbar";
 import { ChallengePicker } from "@/components/ChallengePicker";
+import { TimedPractice } from "@/components/TimedPractice";
+import { ChallengeCreator } from "@/components/ChallengeCreator";
 import { FIXED_CHALLENGES, challengeGenerator, type Challenge } from "@/lib/engine/challenges";
+import { DFA } from "@/lib/engine/dfa";
+import { decodeShare, shareUrl } from "@/lib/share";
 import { findCounterexample } from "@/lib/engine/algorithms";
 import { validateDFA, validateWarnings } from "@/lib/engine/validate";
 import { Storage } from "@/lib/storage";
@@ -45,6 +50,8 @@ export function Discovery({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [regex, setRegex] = useState("");
   const [regexErr, setRegexErr] = useState<string | null>(null);
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [creatorOpen, setCreatorOpen] = useState(false);
   const { machine, commit, set, replace, undo, redo, canUndo, canRedo } = useMachine(starterMachine());
   const saveTimer = useRef<number | null>(null);
 
@@ -81,6 +88,16 @@ export function Discovery({
 
   useEffect(() => {
     setChallengeAndReset(FIXED_CHALLENGES[0]!, 1);
+    // A shared machine in the URL hash overrides the autosaved canvas.
+    const shared = decodeShare(window.location.hash);
+    if (shared) {
+      try {
+        replace(dfaToMachine(DFA.fromJSON(shared.d), shared.p));
+        toast.success("Loaded shared machine from link");
+      } catch {
+        toast.error("That share link is malformed");
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -208,11 +225,51 @@ export function Discovery({
       if (action.type === "highlight") flashState(action.state, action.color, 3000);
       if (action.type === "test" || action.type === "animate") runExample(action.value);
       if (action.type === "showExample") addExample(action.str, action.accept);
+      if (action.type === "challenge") {
+        const ch = challengeGenerator.fromRegex(action.regex, action.alphabet, {
+          name: action.name,
+          difficulty: ["Easy", "Medium", "Hard"].includes(action.difficulty)
+            ? (action.difficulty as Challenge["difficulty"])
+            : "Easy",
+          description: "Suggested by Socratic as targeted practice.",
+        });
+        if (ch) {
+          Storage.saveAIChallenge({ ...ch, source: "ai" });
+          setExtra((prev) => [ch, ...prev].slice(0, 12));
+          setChallengeAndReset(ch, index + 1);
+          toast.success("Socratic set you a practice challenge", { description: ch.name });
+        }
+      }
     };
     window.addEventListener("iale-tutor-action", handler);
     return () => window.removeEventListener("iale-tutor-action", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, dfa, errors, examples]);
+
+  const unreachableWarn = useMemo(() => (solved ? validateWarnings(dfa) : []), [solved, dfa]);
+
+  const clearUnreachable = () => {
+    const reach = dfa.reachableStates();
+    commit((m) => {
+      const kept = m.states.filter((s) => reach.has(s.label));
+      const ids = new Set(kept.map((s) => s.id));
+      return { states: kept, transitions: m.transitions.filter((t) => ids.has(t.from) && ids.has(t.to)) };
+    });
+    toast.success("Unreachable states removed");
+  };
+
+  const share = () => {
+    if (!machine.states.length) {
+      toast.error("Nothing to share yet — add some states first");
+      return;
+    }
+    const url = shareUrl(machine, alphabet);
+    window.history.replaceState(null, "", url);
+    void navigator.clipboard
+      ?.writeText(url)
+      .then(() => toast.success("Share link copied to clipboard"))
+      .catch(() => toast("Share link is in the address bar"));
+  };
 
   const hints = challenge.hints ?? [
     "Think about what the machine must remember between symbols — that memory is your states.",
@@ -316,6 +373,15 @@ export function Discovery({
           onLayout={() => commit((m) => layoutMachine(m))}
           alphabet={alphabet}
         >
+          <button className="btn-ghost inline-flex items-center gap-1.5" title="Copy a shareable link to this machine" onClick={share}>
+            <Share2 size={13} /> Share
+          </button>
+          <button className="btn-ghost inline-flex items-center gap-1.5" title="Build your own challenge" onClick={() => setCreatorOpen(true)}>
+            <Wrench size={13} /> Create
+          </button>
+          <button className="btn-ghost inline-flex items-center gap-1.5" title="Timed accept/reject streak practice" onClick={() => setPracticeOpen(true)}>
+            <Timer size={13} /> Practice
+          </button>
           <button className="btn-ghost" onClick={loadRandom}>
             New challenge
           </button>
@@ -343,6 +409,11 @@ export function Discovery({
               <div className="text-xs" style={{ color: "var(--ink-muted)" }}>
                 {feedback.body}
               </div>
+              {!!unreachableWarn.length && (
+                <button className="btn-ghost mt-1 self-start text-xs" onClick={clearUnreachable}>
+                  Clear unreachable states?
+                </button>
+              )}
             </>
           ) : (
             <div className="text-xs" style={{ color: "var(--ink-muted)" }}>
@@ -354,6 +425,18 @@ export function Discovery({
           )}
         </div>
       </section>
+
+      {practiceOpen && <TimedPractice challenge={challenge} onClose={() => setPracticeOpen(false)} />}
+      {creatorOpen && (
+        <ChallengeCreator
+          defaultAlphabet={alphabet}
+          onClose={() => setCreatorOpen(false)}
+          onLoad={(ch) => {
+            setExtra((prev) => [ch, ...prev.filter((c) => c.id !== ch.id)].slice(0, 12));
+            setChallengeAndReset(ch, index + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

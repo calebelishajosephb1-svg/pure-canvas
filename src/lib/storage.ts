@@ -221,4 +221,13 @@ export const Storage = {
     emit("iale-data-cleared");
     return { ok: true };
   },
+  /** Full factory reset — also wipes AI tutor settings and theme. */
+  clearAllWithSettings() {
+    if (!hasLS()) return { ok: false };
+    for (const key of Object.keys(window.localStorage)) {
+      if (key.startsWith("iale_")) window.localStorage.removeItem(key);
+    }
+    emit("iale-data-cleared");
+    return { ok: true };
+  },
 };

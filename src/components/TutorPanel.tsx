@@ -14,7 +14,7 @@ import { checkReply } from "@/lib/tutor/guard";
 import { dispatchTutorActions, parseTutorActions } from "@/lib/tutor/actions";
 
 const GREETING =
-  "I'm your lab tutor. I can see your canvas, your examples and your last mistake — but I'll never hand you the fix. Ask me anything, or say **\"hint\"**.";
+  "I'm Socratic, your lab tutor. I can see your canvas, your examples and your last mistake — but I'll never hand you the fix. Ask me anything, or say **\"hint\"**.";
 
 export function TutorPanel({
   open,
@@ -85,7 +85,7 @@ export function TutorPanel({
     <aside className="tutor-panel">
       <header className="tutor-head">
         <Bot size={16} style={{ color: "var(--signal-blue)" }} />
-        <span className="font-semibold text-sm">AI Tutor</span>
+        <span className="font-semibold text-sm">Socratic</span>
         <span className="badge" data-tone={settings.apiKey ? "accept" : "amber"}>
           {settings.apiKey ? provider.label.split(" ")[0] : "no key"}
         </span>

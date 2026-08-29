@@ -27,6 +27,19 @@ export function Analytics({ active, onContext, onGoto }: { active: boolean; onCo
   const solved = Storage.countSolvedUnique();
   const mistakes = Storage.getMistakeSummary().data;
   const max = Math.max(1, ...mistakes.map((m) => m.count));
+  const solvedIds = new Set(Object.keys(Storage.getStats().solves).map((k) => k.split(":").slice(1).join(":")));
+  const REC_REASON: Record<string, string> = {
+    transition: "Missing transitions keep recurring — drill a small machine to completeness.",
+    accept: "Accepting status is tripping you up — practice where runs must end.",
+    crash: "Your machines crash mid-string — build total transition functions.",
+    sink: "You're missing sink/trap states — learn when to give up cleanly.",
+    hint: "Lots of hints used — try an easier language to rebuild confidence.",
+  };
+  const unsolved = FIXED_CHALLENGES.filter((c) => !solvedIds.has(c.id));
+  const recs = mistakes.slice(0, 3).map((m, i) => ({
+    reason: REC_REASON[m.category] ?? "Targeted practice based on your mistake log.",
+    challenge: unsolved[i] ?? FIXED_CHALLENGES[i] ?? FIXED_CHALLENGES[0]!,
+  }));
   const misconceptions = detectMisconceptions(Storage.getAllMistakes());
 
   useEffect(() => {
@@ -50,6 +63,19 @@ export function Analytics({ active, onContext, onGoto }: { active: boolean; onCo
               }}
             >
               🗑 Reset all data
+            </button>
+            <button
+              className="btn-ghost"
+              style={{ color: "var(--signal-rose)", borderColor: "rgba(244,63,94,0.4)" }}
+              title="Also wipes tutor API settings and theme"
+              onClick={() => {
+                if (confirm("Factory reset — erase progress, saves, tutor settings AND theme?")) {
+                  Storage.clearAllWithSettings();
+                  window.location.reload();
+                }
+              }}
+            >
+              Factory reset
             </button>
           </div>
         </div>
@@ -107,6 +133,30 @@ export function Analytics({ active, onContext, onGoto }: { active: boolean; onCo
             <button className="btn-primary mt-3" onClick={() => onGoto("debugger")}>
               Drill this in the Debugger
             </button>
+          </div>
+        )}
+
+        {!!mistakes.length && (
+          <div className="mt-4">
+            <div className="section-label mb-3">Recommended next</div>
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}>
+              {recs.map((r) => (
+                <div key={`${r.reason}-${r.challenge.id}`} className="lab-card">
+                  <div className="flex items-center justify-between">
+                    <span className="badge" data-tone={r.challenge.difficulty === "Hard" ? "reject" : r.challenge.difficulty === "Medium" ? "amber" : "accept"}>
+                      {r.challenge.difficulty}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm font-semibold">{r.challenge.name}</div>
+                  <p className="mt-1 text-xs" style={{ color: "var(--ink-muted)" }}>
+                    {r.reason}
+                  </p>
+                  <button className="btn-ghost mt-3 text-xs" onClick={() => onGoto("discovery")}>
+                    Try in Discovery →
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

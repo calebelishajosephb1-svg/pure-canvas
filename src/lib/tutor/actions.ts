@@ -5,7 +5,8 @@ export type TutorAction =
   | { type: "hintLevel"; level: number }
   | { type: "celebrate" }
   | { type: "gotoTab"; tab: string }
-  | { type: "showExample"; str: string; accept: boolean };
+  | { type: "showExample"; str: string; accept: boolean }
+  | { type: "challenge"; name: string; regex: string; difficulty: string; alphabet: string[] };
 
 const TAG = /<IALE_([A-Z_]+)([^>]*)\/>/g;
 
@@ -54,11 +55,24 @@ export function parseTutorActions(text: string): { cleanText: string; actions: T
         case "SHOW_EXAMPLE":
           if (str !== undefined) actions.push({ type: "showExample", str, accept: accept !== "false" });
           break;
+        case "CHALLENGE":
+          if (a["regex"])
+            actions.push({
+              type: "challenge",
+              name: a["name"] || `Practice: ${a["regex"]}`,
+              regex: a["regex"]!,
+              difficulty: a["difficulty"] || "Easy",
+              alphabet: a["alphabet"] ? [...a["alphabet"]] : ["0", "1"],
+            });
+          break;
       }
       return "";
     })
     .trim();
-  return { cleanText, actions: actions.slice(0, 2) };
+  // Max 2 tools per turn, and at most 1 challenge per turn.
+  const seenChallenge = actions.findIndex((x) => x.type === "challenge");
+  const capped = actions.filter((x, i) => x.type !== "challenge" || i === seenChallenge);
+  return { cleanText, actions: capped.slice(0, 2) };
 }
 
 export function dispatchTutorActions(actions: TutorAction[]) {

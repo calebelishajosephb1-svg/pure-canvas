@@ -97,7 +97,7 @@ function Index() {
           <button
             className="tool-btn"
             data-active={tutorOpen}
-            title="AI tutor (bring your own key)"
+            title="Socratic tutor (bring your own key)"
             onClick={() => setTutorOpen((o) => !o)}
           >
             <Bot size={15} />
