@@ -175,7 +175,8 @@ You may emit at most 2 of these action tags, each on its own line at the very en
 <IALE_CELEBRATE />
 <IALE_GOTO_TAB tab="discovery|mutation|debugger|analytics|nfa" />
 <IALE_SHOW_EXAMPLE str="010" accept="true|false" />
-Only reference states that exist on the student's canvas.
+<IALE_CHALLENGE name="Easier practice" regex="(0|1)*" difficulty="Easy" alphabet="01" />
+Only reference states that exist on the student's canvas. Emit IALE_CHALLENGE at most once per reply, and only to offer the student an easier practice language — never one that encodes the current hidden answer.
 
 ════════ LIVE CONTEXT ════════
 ${moduleContext}`;
