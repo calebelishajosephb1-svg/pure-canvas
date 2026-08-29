@@ -246,6 +246,31 @@ export function Discovery({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, dfa, errors, examples]);
 
+  const unreachableWarn = useMemo(() => (solved ? validateWarnings(dfa) : []), [solved, dfa]);
+
+  const clearUnreachable = () => {
+    const reach = dfa.reachableStates();
+    commit((m) => {
+      const kept = m.states.filter((s) => reach.has(s.label));
+      const ids = new Set(kept.map((s) => s.id));
+      return { states: kept, transitions: m.transitions.filter((t) => ids.has(t.from) && ids.has(t.to)) };
+    });
+    toast.success("Unreachable states removed");
+  };
+
+  const share = () => {
+    if (!machine.states.length) {
+      toast.error("Nothing to share yet — add some states first");
+      return;
+    }
+    const url = shareUrl(machine, alphabet);
+    window.history.replaceState(null, "", url);
+    void navigator.clipboard
+      ?.writeText(url)
+      .then(() => toast.success("Share link copied to clipboard"))
+      .catch(() => toast("Share link is in the address bar"));
+  };
+
   const hints = challenge.hints ?? [
     "Think about what the machine must remember between symbols — that memory is your states.",
     "Compare two examples that differ by one symbol. Which one flips the verdict, and where?",
@@ -348,6 +373,15 @@ export function Discovery({
           onLayout={() => commit((m) => layoutMachine(m))}
           alphabet={alphabet}
         >
+          <button className="btn-ghost inline-flex items-center gap-1.5" title="Copy a shareable link to this machine" onClick={share}>
+            <Share2 size={13} /> Share
+          </button>
+          <button className="btn-ghost inline-flex items-center gap-1.5" title="Build your own challenge" onClick={() => setCreatorOpen(true)}>
+            <Wrench size={13} /> Create
+          </button>
+          <button className="btn-ghost inline-flex items-center gap-1.5" title="Timed accept/reject streak practice" onClick={() => setPracticeOpen(true)}>
+            <Timer size={13} /> Practice
+          </button>
           <button className="btn-ghost" onClick={loadRandom}>
             New challenge
           </button>
@@ -375,6 +409,11 @@ export function Discovery({
               <div className="text-xs" style={{ color: "var(--ink-muted)" }}>
                 {feedback.body}
               </div>
+              {!!unreachableWarn.length && (
+                <button className="btn-ghost mt-1 self-start text-xs" onClick={clearUnreachable}>
+                  Clear unreachable states?
+                </button>
+              )}
             </>
           ) : (
             <div className="text-xs" style={{ color: "var(--ink-muted)" }}>
@@ -386,6 +425,18 @@ export function Discovery({
           )}
         </div>
       </section>
+
+      {practiceOpen && <TimedPractice challenge={challenge} onClose={() => setPracticeOpen(false)} />}
+      {creatorOpen && (
+        <ChallengeCreator
+          defaultAlphabet={alphabet}
+          onClose={() => setCreatorOpen(false)}
+          onLoad={(ch) => {
+            setExtra((prev) => [ch, ...prev.filter((c) => c.id !== ch.id)].slice(0, 12));
+            setChallengeAndReset(ch, index + 1);
+          }}
+        />
+      )}
     </div>
   );
 }
