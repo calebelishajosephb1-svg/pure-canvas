@@ -416,12 +416,16 @@ export function DFACanvas({
         setTransFrom(null);
         setRenaming(null);
       }
-      if ((e.key === "Delete" || e.key === "Backspace") && selected && editable) deleteState(selected);
+      if (e.key === "Escape") setSelectedEdge(null);
+      if ((e.key === "Delete" || e.key === "Backspace") && editable) {
+        if (selectedEdge) deleteTransition(selectedEdge);
+        else if (selected) deleteState(selected);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, editable]);
+  }, [selected, selectedEdge, editable, deleteTransition]);
 
   const byId = (id: string) => machine.states.find((s) => s.id === id);
   const existingEdges = machine.transitions.map((t) => ({ from: t.from, to: t.to, symbols: t.symbols }));
