@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRightLeft, Copy, Wand2 } from "lucide-react";
 import { DFACanvas, type CanvasMode } from "@/components/DFACanvas";
 import { CanvasToolbar } from "@/components/CanvasToolbar";
+import { DFA } from "@/lib/engine/dfa";
 import { EPS, NFA } from "@/lib/engine/nfa";
 import { regexToNFA, validateRegex } from "@/lib/engine/regex";
 import {
