@@ -501,14 +501,24 @@ export function DFACanvas({
           const hasReverse = machine.transitions.some((o) => o.from === t.to && o.to === t.from && o.id !== t.id);
           const g = edgeGeometry(a, b, hasReverse);
           const active =
-            activeTransition && a.label === activeTransition.from && b.label === activeTransition.to;
+            (activeTransition && a.label === activeTransition.from && b.label === activeTransition.to) ||
+            (highlightTransition && a.label === highlightTransition.from && b.label === highlightTransition.to);
+          const isSelEdge = selectedEdge === t.id;
+          const dimmed = !!isolateSymbol && !t.symbols.includes(isolateSymbol);
+          const tone = active
+            ? highlightTransition?.color
+              ? TONE_VAR[highlightTransition.color]
+              : "var(--signal-blue)"
+            : isSelEdge
+              ? "var(--signal-amber)"
+              : "var(--border-strong)";
           return (
-            <g key={t.id}>
+            <g key={t.id} opacity={dimmed ? 0.18 : 1}>
               <path
                 d={g.path}
                 fill="none"
-                stroke={active ? "var(--signal-blue)" : "var(--border-strong)"}
-                strokeWidth={active ? 3 : 2}
+                stroke={tone}
+                strokeWidth={active || isSelEdge ? 3 : 2}
                 markerEnd={active ? "url(#arr-hl)" : "url(#arr)"}
                 opacity={active ? 1 : 0.85}
               />
@@ -518,11 +528,16 @@ export function DFACanvas({
                 textAnchor="middle"
                 fontFamily="var(--font-mono-family)"
                 fontSize="13"
-                fill={active ? "var(--signal-blue)" : "var(--ink-muted)"}
-                style={{ paintOrder: "stroke", stroke: "var(--bg-canvas)", strokeWidth: 5 }}
+                fill={active ? "var(--signal-blue)" : isSelEdge ? "var(--signal-amber)" : "var(--ink-primary)"}
+                style={{ paintOrder: "stroke", stroke: "var(--bg-canvas)", strokeWidth: 6 }}
               >
-                {t.symbols.join(",")}
+                {isolateSymbol ? t.symbols.filter((s) => s === isolateSymbol).join(",") || t.symbols.join(",") : t.symbols.join(",")}
               </text>
+              {isSelEdge && editable && (
+                <text x={g.labelX} y={g.labelY + 16} textAnchor="middle" fontSize="9.5" fill="var(--signal-amber)">
+                  press Delete to remove
+                </text>
+              )}
             </g>
           );
         })}
