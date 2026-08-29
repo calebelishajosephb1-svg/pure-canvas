@@ -157,6 +157,12 @@ export function Converter({ active, onContext }: { active: boolean; onContext?: 
     );
   }, [onContext, source, target, machine, alphabet, regexInput, result, logStep]);
 
+  /* Tell the guard how far the derivation has been revealed. */
+  useEffect(() => {
+    const finalVisible = !!result && (result.steps.length === 0 || logStep >= result.steps.length - 1);
+    window.dispatchEvent(new CustomEvent("iale-reveal-state", { detail: { moduleId: "converter", finalVisible } }));
+  }, [result, logStep]);
+
   /* ── tutor canvas-control vocabulary ── */
   useEffect(() => {
     const offs = [
