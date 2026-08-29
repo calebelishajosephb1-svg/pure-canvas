@@ -121,6 +121,9 @@ function Index() {
           <ModulePane show={tab === "nfa"}>
             <NFALab />
           </ModulePane>
+          <ModulePane show={tab === "converter"}>
+            <Converter active={tab === "converter"} onContext={bind("converter")} />
+          </ModulePane>
           <ModulePane show={tab === "analytics"}>
             <Analytics active={tab === "analytics"} onContext={bind("analytics")} onGoto={goto} />
           </ModulePane>
