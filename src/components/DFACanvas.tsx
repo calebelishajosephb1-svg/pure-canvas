@@ -206,6 +206,42 @@ export function DFACanvas({
     [machine.states],
   );
 
+  /** Nearest transition within a grab radius, so edges can be selected/deleted too. */
+  const hitTransition = useCallback(
+    (x: number, y: number) => {
+      let best: { t: MachineTransition; d: number } | null = null;
+      for (const t of machine.transitions) {
+        const a = machine.states.find((s) => s.id === t.from);
+        const b = machine.states.find((s) => s.id === t.to);
+        if (!a || !b) continue;
+        const curved = machine.transitions.some((o) => o.from === t.to && o.to === t.from && o.id !== t.id);
+        const g = edgeGeometry(a, b, curved);
+        let d = Math.hypot(g.labelX - x, g.labelY - y);
+        if (a.id !== b.id) {
+          // point-to-segment distance along the state-centre line
+          const vx = b.x - a.x;
+          const vy = b.y - a.y;
+          const len2 = vx * vx + vy * vy || 1;
+          const tt = Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / len2));
+          const px = a.x + tt * vx;
+          const py = a.y + tt * vy;
+          d = Math.min(d, Math.hypot(px - x, py - y) + (curved ? 22 : 0));
+        }
+        if (d <= 16 && (!best || d < best.d)) best = { t, d };
+      }
+      return best?.t ?? null;
+    },
+    [machine],
+  );
+
+  const deleteTransition = useCallback(
+    (id: string) => {
+      onChange?.((prev) => ({ ...prev, transitions: prev.transitions.filter((t) => t.id !== id) }));
+      setSelectedEdge(null);
+    },
+    [onChange],
+  );
+
   const nextLabel = useCallback(() => {
     let i = 0;
     const used = new Set(machine.states.map((s) => s.label));
